@@ -1,16 +1,26 @@
-# This is a sample Python script.
+"""
+i16_peakfit
+Wrapper and graphical user interface of lmfit for scattering experiments such as those on Diamond-I16.
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+Usage:
+  $ python -m i16_peakfit
+  > start gui
+OR
+  $ python -m bablescan /some/xye/file.dat
+   - starts gui with data loaded
+
+By Dan Porter, PhD
+Diamond Light Source Ltd.
+2021
+"""
+
+import os, sys
+import numpy as np
+import matplotlib.pyplot as plt
+import i16_peakfit
+from i16_peakfit.tkinter_gui import FittingGUI
 
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
-
-
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    print_hi('PyCharm')
+    gui = FittingGUI()
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/

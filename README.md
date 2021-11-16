@@ -11,6 +11,8 @@ OR - Start GUI with data loaded
   $ python -m bablescan /some/xye/file.dat
 ```
 
-By Dan Porter, PhD
-Diamond Light Source Ltd.
-2021
+![GUI screenshot](i16_peakfit_screenshot.png)
+
+By Dan Porter, Diamond Light Source Ltd. 2021
+
+

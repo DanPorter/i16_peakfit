@@ -445,7 +445,7 @@ class FittingGUI:
         """Remove all models"""
         current_prefix = [mod[0] for mod in self.models]
         for prefx in current_prefix:
-            print('Removing %s' % prefx)
+            # print('Removing %s' % prefx)
             self.remove_model(prefx)
 
     def gen_model(self):
@@ -528,7 +528,7 @@ class FittingGUI:
         """Menu button Load text"""
         filename = tk_widgets.filedialog.askopenfilename(
             title='Read (x y error) data',
-            initialdir='../.',
+            initialdir='.',
             initialfile='data.dat',
             defaultextension='*.*',
             filetypes=(("all files", "*.*"), ("text files", "*.txt"), ("data files", "*.dat"), ("CSV files", "*.csv"))
