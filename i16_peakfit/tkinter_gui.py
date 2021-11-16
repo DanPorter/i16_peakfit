@@ -10,30 +10,10 @@ import tkinter as tk
 
 from i16_peakfit import fitting
 from i16_peakfit import tk_widgets
+from .tk_widgets import (TF, BF, SF, HF, MF, LF,
+                         bkg, ety, btn, btn2, opt, btn_active, opt_active, txtcol,
+                         ety_txt, btn_txt, opt_txt, ttl_txt)
 
-
-# Fonts
-TF = ["Times", 12]  # entry
-BF = ["Times", 14]  # Buttons
-SF = ["Times New Roman", 14]  # Title labels
-MF = ["Courier", 8]  # fixed distance format
-LF = ["Times", 14]  # Labels
-HF = ["Courier", 12]  # Text widgets (big)
-# Colours - background
-bkg = 'snow'
-ety = 'white'
-btn = 'azure'  # 'light slate blue'
-opt = 'azure'  # 'light slate blue'
-btn2 = 'gold'
-# Colours - active
-btn_active = 'grey'
-opt_active = 'grey'
-# Colours - Fonts
-txtcol = 'black'
-btn_txt = 'black'
-ety_txt = 'black'
-opt_txt = 'black'
-ttl_txt = 'red'
 # Figure size
 _figure_dpi = 60
 
@@ -198,7 +178,7 @@ class FittingGUI:
         # X
         sec = tk.LabelFrame(left, text='X Data', relief=tk.RIDGE)
         sec.pack(side=tk.TOP, fill=tk.X, expand=tk.YES, padx=2, pady=2)
-        self.txt_x = tk.Text(sec, width=65, wrap=tk.WORD, height=5)
+        self.txt_x = tk.Text(sec, width=65, wrap=tk.WORD, height=5, bg=ety)
         self.txt_x.insert(tk.INSERT, str(list(xdata)))
         scl = tk.Scrollbar(sec)
         scl.config(command=self.txt_x.yview)
@@ -209,7 +189,7 @@ class FittingGUI:
         # Y
         sec = tk.LabelFrame(left, text='Y Data', relief=tk.RIDGE)
         sec.pack(side=tk.TOP, fill=tk.X, expand=tk.YES, padx=2, pady=2)
-        self.txt_y = tk.Text(sec, width=65, wrap=tk.WORD, height=5)
+        self.txt_y = tk.Text(sec, width=65, wrap=tk.WORD, height=5, bg=ety)
         self.txt_y.insert(tk.INSERT, str(list(ydata)))
         scl = tk.Scrollbar(sec)
         scl.config(command=self.txt_y.yview)
@@ -220,7 +200,7 @@ class FittingGUI:
         # Error
         sec = tk.LabelFrame(left, text='Y Error', relief=tk.RIDGE)
         sec.pack(side=tk.TOP, fill=tk.X, expand=tk.YES, padx=2, pady=2)
-        self.txt_e = tk.Text(sec, width=65, wrap=tk.WORD, height=5)
+        self.txt_e = tk.Text(sec, width=65, wrap=tk.WORD, height=5, bg=ety)
         self.txt_e.insert(tk.INSERT, str(list(yerrors)))
         scl = tk.Scrollbar(sec)
         scl.config(command=self.txt_e.yview)
@@ -353,7 +333,7 @@ class FittingGUI:
         sec = tk.Frame(right)
         sec.pack(side=tk.TOP, fill=tk.X, expand=tk.YES, padx=2, pady=2)
         var = tk.Button(sec, text='Fit', font=BF, command=self.but_fit,
-                        bg=btn, activebackground=btn_active)
+                        bg=btn2, activebackground=btn_active)
         var.pack(side=tk.LEFT, expand=tk.YES, padx=2)
         var = tk.Button(sec, text='Display Results', font=BF, command=self.but_txt_results,
                         bg=btn, activebackground=btn_active)
@@ -395,7 +375,7 @@ class FittingGUI:
         # ---Right hand bottom - Results textbox---
         sec = tk.LabelFrame(right, text='Results', relief=tk.RIDGE)
         sec.pack(side=tk.TOP, fill=tk.BOTH, expand=tk.YES, padx=2, pady=2)
-        self.txt_res = tk.Text(sec, width=30, wrap=tk.WORD, height=5)
+        self.txt_res = tk.Text(sec, width=30, wrap=tk.WORD, height=5, bg=ety)
         self.txt_res.insert(tk.INSERT, '')
         scl = tk.Scrollbar(sec)
         scl.config(command=self.txt_res.yview)

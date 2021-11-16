@@ -18,8 +18,8 @@ MF = ["Courier", 8]  # fixed distance format
 LF = ["Times", 14]  # Labels
 HF = ["Courier", 12]  # Text widgets (big)
 # Colours - background
-bkg = 'snow'
-ety = 'white'
+bkg = 'white smoke'
+ety = 'white'  # white
 btn = 'azure'  # 'light slate blue'
 opt = 'azure'  # 'light slate blue'
 btn2 = 'gold'
