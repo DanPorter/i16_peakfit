@@ -147,6 +147,7 @@ class FittingGUI:
         # ---Menu---
         menu = {
             'File': {
+                'New Window': self.menu_new,
                 'Load Data': self.menu_load,
                 'Load Nexus': self.menu_nexus,
                 'Exit': self.f_exit,
@@ -322,6 +323,9 @@ class FittingGUI:
         # ---Right hand side Top - Buttons ---
         sec = tk.Frame(right)
         sec.pack(side=tk.TOP, fill=tk.X, expand=tk.YES, padx=2, pady=2)
+        var = tk.Button(sec, text='Fit', font=BF, width=12, command=self.but_fit,
+                        bg=btn2, activebackground=btn_active)
+        var.pack(side=tk.LEFT, expand=tk.YES, padx=2)
         var = tk.Label(sec, text='Method:', font=SF)
         var.pack(side=tk.LEFT)
         methods = list(fitting.METHODS.keys())
@@ -329,12 +333,6 @@ class FittingGUI:
         var.config(font=SF, width=12, bg=opt, activebackground=opt_active)
         var["menu"].config(bg=opt, bd=0, activebackground=opt_active)
         var.pack(side=tk.LEFT)
-
-        sec = tk.Frame(right)
-        sec.pack(side=tk.TOP, fill=tk.X, expand=tk.YES, padx=2, pady=2)
-        var = tk.Button(sec, text='Fit', font=BF, command=self.but_fit,
-                        bg=btn2, activebackground=btn_active)
-        var.pack(side=tk.LEFT, expand=tk.YES, padx=2)
         var = tk.Button(sec, text='Display Results', font=BF, command=self.but_txt_results,
                         bg=btn, activebackground=btn_active)
         var.pack(side=tk.LEFT, expand=True, padx=2)
@@ -503,6 +501,10 @@ class FittingGUI:
     "------------------------------------------------------------------------"
     "---------------------------Button Functions-----------------------------"
     "------------------------------------------------------------------------"
+
+    def menu_new(self):
+        """Menu button new window"""
+        FittingGUI()
 
     def menu_load(self):
         """Menu button Load text"""
