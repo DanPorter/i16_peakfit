@@ -2,15 +2,23 @@
 i16_peakfit
 Wrapper and graphical user interface of lmfit for scattering experiments such as those on Diamond-I16.
 
+lmfit models are applied to scattering type peaks (Poisson-like using counting statistics where 0 is real).
+
+Estimates are made as inital guesses based on additional peak finding algorithms.
+
+Batch processing allows multiple datasets to be fitted at once and the resulting fit parameters plotted against
+an ancilliary dataset value.
+
 By Dan Porter, PhD
 Diamond Light Source Ltd.
 2021
 
-Version 1.0.0
-Last updated: 16/11/21
+Version 0.2.0
+Last updated: 30/11/21
 
 Version History:
-16/11/21 1.0.0  Version History started.
+16/11/21 0.1.0  Version History started.
+30/11/21 0.2.0  Refactored tkinter_gui, functions.py, peak_finding.py, added tkmodelpars, tkbatch_gui, nexus_loader
 
 -----------------------------------------------------------------------------
    Copyright 2021 Diamond Light Source Ltd.
@@ -33,14 +41,16 @@ Version History:
 """
 
 
-__version__ = "1.0.0"
-__date__ = "2021/11/16"
+__version__ = "0.2.0"
+__date__ = "2021/11/30"
 
 #import tkinter
 #import matplotlib
 #matplotlib.use("TkAgg")
 
-from i16_peakfit.fitting import load_xye, find_peaks, peak_ratio, multipeakfit, generate_model
+from i16_peakfit.fitting import multipeakfit, generate_model
+from i16_peakfit.peak_finding import find_peaks
+from i16_peakfit.functions import load_xye, peak_ratio
 
 
 def version_info():

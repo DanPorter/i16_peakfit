@@ -11,38 +11,13 @@ fit.plot()
 """
 
 import numpy as np
-#from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, PseudoVoigtModel, LinearModel, ExponentialModel
 from lmfit import models
 
 # https://lmfit.github.io/lmfit-py/builtin_models.html#peak-like-models
-MODELS = {
-    'gaussian': models.GaussianModel,
-    'lorentzian': models.LorentzianModel,
-    'voigt': models.VoigtModel,
-    'pseudovoigt': models.PseudoVoigtModel,
-    'linear': models.LinearModel,
-    'exponential': models.ExponentialModel,
-    'breitwigner': models.BreitWignerModel,
-    'complexconstant': models.ComplexConstantModel,
-    'constant': models.ConstantModel,
-    'dampedharmonicoscillator': models.DampedHarmonicOscillatorModel,
-    'dampedoscillator': models.DampedOscillatorModel,
-    'donaich': models.DonaichModel,
-    'exponentialgaussian': models.ExponentialGaussianModel,
-    'lognormal': models.LognormalModel,
-    'moffat': models.MoffatModel,
-    'parabolic': models.ParabolicModel,
-    'pearson7': models.Pearson7Model,
-    'polynomial': models.PolynomialModel,
-    'powerlaw': models.PowerLawModel,
-    'quadratic': models.QuadraticModel,
-    'rectangle': models.RectangleModel,
-    'skewedgaussian': models.SkewedGaussianModel,
-    'skewedvoigt': models.SkewedVoigtModel,
-    'splitlorentzian': models.SplitLorentzianModel,
-    'step': models.StepModel,
-    'studentst': models.StudentsTModel,
-}
+from i16_peakfit.peak_finding import find_peaks
+from i16_peakfit.functions import stfm, error_func, gen_weights, group_adjacent
+
+MODELS = {'%s' % mod[:-5].lower(): getattr(models, mod) for mod in dir(models) if mod.endswith('Model')}
 
 PEAK_MODELS = {
     'gaussian': ['gaussian', 'gauss'],
@@ -60,7 +35,7 @@ PEAK_MODELS = {
     'exponentialgaussian': ['exponentialgaussian', 'expgaussian'],
     'skewedgaussian': ['skewedgaussian', 'skewed_gaussian', 'splitgaussian'],
     'skewedvoigt': ['skewedvoigt', 'skewed_voigt', 'splitvoigt', 'skewedvoight', 'splitvoight'],
-    'donaich': ['donaich'],
+    'doniach': ['donaich', 'doniach'],
 }
 
 BACKGROUND_MODELS = {
@@ -113,323 +88,29 @@ def getmodel(name):
     if name in MODELS:
         return MODELS[name]
     for model_key, model_names in PEAK_MODELS.items():
-        if name in model_names:
+        if name in model_names and model_key in MODELS:
             return MODELS[model_key]
     for model_key, model_names in BACKGROUND_MODELS.items():
-        if name in model_names:
+        if name in model_names and model_key in MODELS:
             return MODELS[model_key]
     raise KeyError('Not an lmfit method: %s' % name)
 
 
-def stfm(val, err):
+def new_peak_prefix(model, fmt='p%d_'):
     """
-    Create standard form string from value and uncertainty"
-     str = stfm(val,err)
-     Examples:
-          '35.25 (1)' = stfm(35.25,0.01)
-          '110 (5)' = stfm(110.25,5)
-          '0.0015300 (5)' = stfm(0.00153,0.0000005)
-          '1.56(2)E+6' = stfm(1.5632e6,1.53e4)
-
-    Notes:
-     - Errors less than 0.01% of values will be given as 0
-     - The maximum length of string is 13 characters
-     - Errors greater then 10x the value will cause the value to be rounded to zero
+    Determine new peak prefix for model
+    :param model: lmfit model
+    :param fmt: prefix format
+    :return: str : fmt % n where n is peak number
     """
+    if model is None or not hasattr(model, 'components'):
+        return fmt % 1
 
-    # Determine the number of significant figures from the error
-    if err == 0. or val / float(err) >= 1E5:
-        # Zero error - give value to 4 sig. fig.
-        out = '{:1.5G}'.format(val)
-        if 'E' in out:
-            out = '{}(0)E{}'.format(*out.split('E'))
-        else:
-            out = out + ' (0)'
-        return out
-    elif np.log10(np.abs(err)) > 0.:
-        # Error > 0
-        sigfig = np.ceil(np.log10(np.abs(err))) - 1
-        dec = 0.
-    elif np.isnan(err):
-        # nan error
-        return '{} (-)'.format(val)
-    else:
-        # error < 0
-        sigfig = np.floor(np.log10(np.abs(err)) + 0.025)
-        dec = -sigfig
-
-    # Round value and error to the number of significant figures
-    rval = round(val / (10. ** sigfig)) * (10. ** sigfig)
-    rerr = round(err / (10. ** sigfig)) * (10. ** sigfig)
-    # size of value and error
-    pw = np.floor(np.log10(np.abs(rval)))
-    pwr = np.floor(np.log10(np.abs(rerr)))
-
-    max_pw = max(pw, pwr)
-    ln = max_pw - sigfig  # power difference
-
-    if np.log10(np.abs(err)) < 0:
-        rerr = err / (10. ** sigfig)
-
-    # Small numbers - exponential notation
-    if max_pw < -3.:
-        rval = rval / (10. ** max_pw)
-        fmt = '{' + '0:1.{:1.0f}f'.format(ln) + '}({1:1.0f})E{2:1.0f}'
-        return fmt.format(rval, rerr, max_pw)
-
-    # Large numbers - exponential notation
-    if max_pw >= 4.:
-        rval = rval / (10. ** max_pw)
-        rerr = rerr / (10. ** sigfig)
-        fmt = '{' + '0:1.{:1.0f}f'.format(ln) + '}({1:1.0f})E+{2:1.0f}'
-        return fmt.format(rval, rerr, max_pw)
-
-    fmt = '{' + '0:0.{:1.0f}f'.format(dec + 0) + '} ({1:1.0f})'
-    return fmt.format(rval, rerr)
-
-
-def error_func(y):
-    """Default error function"""
-    return np.sqrt(np.abs(y) + 1)
-
-
-def load_xye(filename, delimiter=None):
-    """
-    Load (x,y,error) from file
-      File can have several formats:
-        > same as np.savetxt(filename, (x, y, error))
-        > x y error\n
-        > x, y, error\n
-    :param filename: str name of file
-    :param delimiter: str alternative delimiter to try
-    :return: xdata, ydata, yerror
-    """
-    try:
-        data = np.loadtxt(filename)
-    except ValueError:
-        if delimiter is None:
-            delimiter = ','
-        data = np.loadtxt(filename, delimiter=delimiter)
-    # Check shape
-    if data.shape[1] < data.shape[0]:  # (*, 3/2)
-        xdata = data[:, 0]
-        ydata = data[:, 1]
-        if data.shape[1] < 3:
-            error = np.zeros_like(ydata)
-        else:
-            error = data[:, 2]
-    else:
-        xdata = data[0, :]
-        ydata = data[1, :]
-        if data.shape[0] < 3:
-            error = np.zeros_like(ydata)
-        else:
-            error = data[2, :]
-    return xdata, ydata, error
-
-
-def peak_ratio(y, yerror=None):
-    """
-    Return the ratio signal / error for given dataset
-    From Blessing, J. Appl. Cryst. (1997). 30, 421-426 Equ: (1) + (6)
-      peak_ratio = (sum((y-bkg)/dy^2)/sum(1/dy^2)) / sqrt(i/sum(1/dy^2))
-    :param y: array of y data
-    :param yerror: array of errors on data, or None to calcualte np.sqrt(y+0.001)
-    :return: float ratio signal / err
-    """
-    if yerror is None:
-        yerror = error_func(y)
-    bkg = np.min(y)
-    wi = 1 / yerror ** 2
-    signal = np.sum(wi * (y - bkg)) / np.sum(wi)
-    err = np.sqrt(len(y) / np.sum(wi))
-    return signal / err
-
-
-def gen_weights(yerrors=None):
-    """
-    Generate weights for fitting routines
-    :param yerrors: array(n) or None
-    :return: array(n) or None
-    """
-    if yerrors is None or np.all(np.abs(yerrors) < 0.001):
-        weights = None
-    else:
-        yerrors = np.asarray(yerrors, dtype=float)
-        yerrors[yerrors < 1] = 1.0
-        weights = 1 / yerrors
-        weights = np.abs(np.nan_to_num(weights))
-    return weights
-
-
-def gauss(x, y=None, height=1, cen=0, fwhm=0.5, bkg=0):
-    """
-    Define Gaussian distribution in 1 or 2 dimensions
-    From http://fityk.nieto.pl/model.html
-        x = [1xn] array of values, defines size of gaussian in dimension 1
-        y = None* or [1xm] array of values, defines size of gaussian in dimension 2
-        height = peak height
-        cen = peak centre
-        fwhm = peak full width at half-max
-        bkg = background
-    """
-
-    if y is None:
-        y = cen
-
-    x = np.asarray(x, dtype=np.float).reshape([-1])
-    y = np.asarray(y, dtype=np.float).reshape([-1])
-    xx, yy = np.meshgrid(x, y)
-    g = height * np.exp(-np.log(2) * (((xx - cen) ** 2 + (yy - cen) ** 2) / (fwhm / 2) ** 2)) + bkg
-
-    if len(y) == 1:
-        g = g.reshape([-1])
-    return g
-
-
-def group_adjacent(values, close=10):
-    """
-    Average adjacent values in array, return grouped array and indexes to return groups to original array
-    E.G.
-     grp, idx = group_adjacent([1,2,3,10,12,31], close=3)
-     grp -> [2, 11, 31]
-     idx -> [[0,1,2], [3,4], [5]]
-
-    :param values: array of values to be grouped
-    :param close: float
-    :return grouped_values: float array(n) of grouped values
-    :return indexes: [n] list of lists, each item relates to an averaged group, with indexes from values
-    """
-    # Check distance between good peaks
-    dist_chk = []
-    dist_idx = []
-    gx = 0
-    dist = [values[gx]]
-    idx = [gx]
-    while gx < len(values) - 1:
-        gx += 1
-        if (values[gx] - values[gx - 1]) < close:
-            dist += [values[gx]]
-            idx += [gx]
-            # print('Close %2d %2d %2d  %s' % (gx, indexes[gx], indexes[gx-1], dist))
-        else:
-            dist_chk += [np.mean(dist)]
-            dist_idx += [idx]
-            dist = [values[gx]]
-            idx = [gx]
-            # print('Next %2d %2d %2d %s' % (gx, indexes[gx], indexes[gx-1], dist_chk))
-    dist_chk += [np.mean(dist)]
-    dist_idx += [idx]
-    # print('Last %2d %2d %2d %s' % (gx, indexes[gx], indexes[gx-1], dist_chk))
-    return np.array(dist_chk), dist_idx
-
-
-def local_maxima_1d(y):
-    """
-    Find local maxima in 1d array
-    Returns points with central point higher than neighboring points
-    Copied from scipy.signal._peak_finding_utils
-    https://github.com/scipy/scipy/blob/v1.7.1/scipy/signal/_peak_finding_utils.pyx
-    :param y: list or array
-    :return: array of peak indexes
-    """
-    y = np.asarray(y, dtype=float).reshape(-1)
-
-    # Preallocate, there can't be more maxima than half the size of `y`
-    midpoints = np.empty(y.shape[0] // 2, dtype=np.intp)
-    m = 0  # Pointer to the end of valid area in allocated arrays
-    i = 1  # Pointer to current sample, first one can't be maxima
-    i_max = y.shape[0] - 1  # Last sample can't be maxima
-    while i < i_max:
-        # Test if previous sample is smaller
-        if y[i - 1] < y[i]:
-            i_ahead = i + 1  # Index to look ahead of current sample
-
-            # Find next sample that is unequal to x[i]
-            while i_ahead < i_max and y[i_ahead] == y[i]:
-                i_ahead += 1
-
-            # Maxima is found if next unequal sample is smaller than x[i]
-            if y[i_ahead] < y[i]:
-                left_edge = i
-                right_edge = i_ahead - 1
-                midpoints[m] = (left_edge + right_edge) // 2
-                m += 1
-                # Skip samples that can't be maximum
-                i = i_ahead
-        i += 1
-    return midpoints[:m]
-
-
-def find_local_maxima(y, yerror=None):
-    """
-    Find local maxima in 1d arrays, returns index of local maximums, plus
-    estimation of the peak power for each maxima and a classification of whether the maxima is greater than
-    the standard deviation of the error
-    E.G.
-        index, power, isgood = find_local_maxima(ydata)
-        maxima = ydata[index[isgood]]
-        maxima_power = power[isgood]
-    Peak Power:
-      peak power for each maxima is calculated using the peak_ratio algorithm for each maxima and adjacent points
-    Good Peaks:
-      Maxima are returned Good if:  power > (max(y) - min(y)) / std(yerror)
-    :param y: array(n) of data
-    :param yerror: array(n) of errors on data, or None to use default error function (sqrt(abs(y)+1))
-    :return index: array(m<n) of indexes in y of maxima
-    :return power: array(m) of estimated peak power for each maxima
-    :return isgood: bool array(m) where True elements have power > power of the array
-    """
-
-    if yerror is None or np.all(np.abs(yerror) < 0.1):
-        yerror = error_func(y)
-    yerror[yerror < 1] = 1.0
-    bkg = np.min(y)
-    wi = 1 / yerror ** 2
-
-    index = local_maxima_1d(y)
-    # average nearest 3 points to peak
-    power = np.array([np.sum(wi[m - 1:m + 2] * (y[m - 1:m + 2] - bkg)) / np.sum(wi[m - 1:m + 2]) for m in index])
-    # Determine if peak is good
-    isgood = power > (np.max(y) - np.min(y)) / (np.std(yerror) + 1)
-    return index, power, isgood
-
-
-def find_peaks(y, yerror=None, min_peak_power=None, points_between_peaks=6):
-    """
-    Find peak shaps in linear-spaced 1d arrays with poisson like numerical values
-    E.G.
-      index, power = find_peaks(ydata, yerror, min_peak_power=None, peak_distance_idx=10)
-      peak_centres = xdata[index]  # ordered by peak strength
-    :param y: array(n) of data
-    :param yerror: array(n) of errors on data, or None to use default error function (sqrt(abs(y)+1))
-    :param min_peak_power: float, only return peaks with power greater than this. If None compare against std(y)
-    :param points_between_peaks: int, group adjacent maxima if closer in index than this
-    :return index: array(m) of indexes in y of peaks that satisfy conditions
-    :return power: array(m) of estimated power of each peak
-    """
-    # Get all peak positions
-    midpoints, peak_signals, chk = find_local_maxima(y, yerror)
-
-    if min_peak_power is None:
-        good_peaks = chk
-    else:
-        good_peaks = peak_signals >= min_peak_power
-
-    # select indexes of good peaks
-    peaks_idx = midpoints[good_peaks]
-    peak_power = peak_signals[good_peaks]
-    if len(peaks_idx) == 0:
-        return peaks_idx, peak_power
-
-    # Average peaks close to each other
-    group_idx, group_signal_idx = group_adjacent(peaks_idx, points_between_peaks)
-    peaks_idx = np.round(group_idx).astype(int)
-    peak_power = np.array([np.sum(peak_power[ii]) for ii in group_signal_idx])
-
-    # sort peak order by strength
-    power_sort = np.argsort(peak_power)
-    return peaks_idx[power_sort], peak_power[power_sort]
+    old_prefix = [comp.prefix for comp in model.components]
+    n = 1
+    while fmt % n in old_prefix:
+        n += 1
+    return fmt % n
 
 
 def generate_model(xvals, yvals, yerrors=None,
@@ -478,14 +159,8 @@ def generate_model(xvals, yvals, yerrors=None,
     if fix_parameters is None:
         fix_parameters = {}
 
-    peak_mod = None
-    bkg_mod = None
-    for model_name, names in PEAK_MODELS.items():
-        if model.lower() in names:
-            peak_mod = MODELS[model_name]
-    for model_name, names in BACKGROUND_MODELS.items():
-        if background.lower() in names:
-            bkg_mod = MODELS[model_name]
+    peak_mod = getmodel(model)
+    bkg_mod = getmodel(background)
 
     mod = bkg_mod(prefix='bkg_')
     for n in range(npeaks):
@@ -569,12 +244,8 @@ def generate_model_script(xvals, yvals, yerrors=None,
         # Find peaks
         peak_idx, peak_pow = find_peaks(yvals, yerrors, min_peak_power, points_between_peaks)
         peak_centers = {'p%d_center' % (n + 1): xvals[peak_idx[n]] for n in range(len(peak_idx))}
-        for model_name, names in PEAK_MODELS.items():
-            if model.lower() in names:
-                peak_mod = MODELS[model_name]
-        for model_name, names in BACKGROUND_MODELS.items():
-            if background.lower() in names:
-                bkg_mod = MODELS[model_name]
+        peak_mod = getmodel(model)
+        bkg_mod = getmodel(background)
         peak_name = peak_mod.__name__
         bkg_name = bkg_mod.__name__
 
@@ -647,7 +318,7 @@ def peak_results(res):
         'sigma': np.mean([res.params['%ssigma' % pfx].value for pfx in peak_prefx]),
         'height': np.mean([res.params['%sheight' % pfx].value for pfx in peak_prefx]),
         'fwhm': np.mean([res.params['%sfwhm' % pfx].value for pfx in peak_prefx]),
-        'background': np.mean(comps['bkg_']),
+        'background': np.mean(comps['bkg_']) if 'bkg_' in comps else 0.0,
         'stderr_amplitude': np.sqrt(np.sum([fit_dict['stderr_%samplitude' % pfx] ** 2 for pfx in peak_prefx])),
         'stderr_center': np.sqrt(np.sum([fit_dict['stderr_%scenter' % pfx] ** 2 for pfx in peak_prefx])) * nn,
         'stderr_sigma': np.sqrt(np.sum([fit_dict['stderr_%ssigma' % pfx] ** 2 for pfx in peak_prefx])) * nn,

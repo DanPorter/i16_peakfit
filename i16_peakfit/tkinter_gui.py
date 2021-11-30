@@ -8,86 +8,17 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk as NavigationToolbar2TkAgg
 import tkinter as tk
 
+import i16_peakfit.functions
 from i16_peakfit import fitting
 from i16_peakfit import tk_widgets
-from .tk_widgets import (TF, BF, SF, HF, MF, LF,
-                         bkg, ety, btn, btn2, opt, btn_active, opt_active, txtcol,
-                         ety_txt, btn_txt, opt_txt, ttl_txt)
+from i16_peakfit.tk_widgets import (TF, BF, SF, HF, MF, LF,
+                                    bkg, ety, btn, btn2, opt, btn_active, opt_active, txtcol,
+                                    ety_txt, btn_txt, opt_txt, ttl_txt)
+from i16_peakfit.tkmodelpars import ModelParsGUI
+from i16_peakfit.peak_finding import find_peaks
 
 # Figure size
 _figure_dpi = 60
-
-
-def gen_param(parent, model, pars):
-    """Make param section, adds section to TOP of parent, returns parameter boxes"""
-
-    if hasattr(model, 'components'):
-        comps = model.components
-    else:
-        comps = [model]
-
-    mods = [(m.prefix, m._name) for m in comps]
-    tkvars = {}
-    sections = []
-    for mod in comps:
-        sec = tk.LabelFrame(parent, text=mod.name, relief=tk.RIDGE)
-        sec.pack(side=tk.TOP, fill=tk.X, expand=tk.YES, padx=1, pady=1)
-        sections += [sec]
-        tkvars[mod.prefix] = []
-        for par in pars:
-            if mod.prefix not in par:
-                continue
-            pval = tk.DoubleVar(parent, pars[par].value)
-            pmin = tk.DoubleVar(parent, pars[par].min)
-            pmax = tk.DoubleVar(parent, pars[par].max)
-            pref = tk.IntVar(parent, int(pars[par].vary))
-            frm = tk.Frame(sec)
-            frm.pack(side=tk.TOP, fill=tk.X, expand=tk.YES)
-            var = tk.Label(frm, text='%s' % par, width=12, font=SF)
-            var.pack(side=tk.LEFT, padx=1)
-            var = tk.Label(frm, text='Value:', font=TF)
-            var.pack(side=tk.LEFT, padx=2)
-            var = tk.Entry(frm, textvariable=pval, font=TF, width=10, bg=ety, fg=ety_txt)
-            var.pack(side=tk.LEFT, padx=2)
-            var = tk.Label(frm, text='Min:', font=TF)
-            var.pack(side=tk.LEFT, padx=2)
-            var = tk.Entry(frm, textvariable=pmin, font=TF, width=10, bg=ety, fg=ety_txt)
-            var.pack(side=tk.LEFT, padx=2)
-            var = tk.Label(frm, text='Max:', font=TF)
-            var.pack(side=tk.LEFT, padx=2)
-            var = tk.Entry(frm, textvariable=pmax, font=TF, width=10, bg=ety, fg=ety_txt)
-            var.pack(side=tk.LEFT, padx=2)
-            var = tk.Label(frm, text='Refine:', font=TF)
-            var.pack(side=tk.LEFT, padx=2)
-            var = tk.Checkbutton(frm, variable=pref, font=TF)
-            var.pack(side=tk.LEFT, padx=2)
-            tkvars[mod.prefix] += [(par, pval, pmin, pmax, pref)]
-    return mods, tkvars, sections
-
-
-def gen_param_from_name(parent, model_name='Gaussian', prefix=''):
-    """Make param section"""
-    model = fitting.getmodel(model_name)(prefix=prefix)
-    pars = model.make_params()
-    return gen_param(parent, model, pars)
-
-
-def gen_model_from_boxes(mods, tkvars):
-    """Generate model from tkboxes"""
-    models = []
-    for prefix, modname in mods:
-        # models += [fitting.MODELS[modname.lower()](prefix=prefix)]
-        models += [fitting.getmodel(modname)(prefix=prefix)]
-    model = models[0]
-    for mod in models[1:]:
-        model += mod
-    pars = model.make_params()
-
-    for prefix in tkvars:
-        for param in tkvars[prefix]:
-            par, pval, pmin, pmax, pref = param
-            pars[par].set(value=pval.get(), min=pmin.get(), max=pmax.get(), vary=bool(pref.get()))
-    return model, pars
 
 
 class FittingGUI:
@@ -95,10 +26,16 @@ class FittingGUI:
     A standalone GUI for Fitting
     """
 
-    def __init__(self, xdata=None, ydata=None, yerrors=None):
+    def __init__(self, xdata=None, ydata=None, yerrors=None, model=None, parameters=None, batch_parent=None):
         """Initialise"""
+
+        self.batch_parent = batch_parent  # /batch_gui.DataSetFrame()
+
         # Create Tk inter instance
-        self.root = tk.Tk()
+        if self.batch_parent is None:
+            self.root = tk.Tk()
+        else:
+            self.root = tk.Toplevel(self.batch_parent.root)
         self.root.wm_title('I16 Peak Fitting')
         # self.root.minsize(width=640, height=480)
         self.root.maxsize(width=self.root.winfo_screenwidth(), height=self.root.winfo_screenheight())
@@ -112,11 +49,11 @@ class FittingGUI:
             xdata = range(11)
 
         if ydata is None:
-            ydata = fitting.gauss(xdata, cen=np.mean(xdata), fwhm=np.ptp(xdata)/4, height=1000)
+            ydata = i16_peakfit.functions.gauss(xdata, cen=np.mean(xdata), fwhm=np.ptp(xdata) / 4, height=1000)
         ydata = np.asarray(ydata, dtype=float)
 
         if yerrors is None:
-            yerrors = fitting.error_func(ydata)
+            yerrors = i16_peakfit.functions.error_func(ydata)
 
         # Create tkinter Frame
         frame = tk.Frame(self.root)
@@ -137,9 +74,10 @@ class FittingGUI:
         self.mask = None
         self.ax1_component_lines = []
         # Models
-        self.models = []  # [('bkg_', 'linear'), ('p1_', 'gaussian')]
-        self.peakvars = {}  # {'bkg_': [('bkg_amplitude', tkvalue, tkmin, tkmax, tkvary), (bkg_slope,...]}
-        self.par_sections = []  # [tk_LabelFrame('bkg_'), tk_LabelFrame('p1_') ...]
+        if model is not None and parameters is None:
+            parameters = model.make_params()
+        self.model = model
+        self.pars = parameters
         # Results
         self.results = None
 
@@ -150,11 +88,13 @@ class FittingGUI:
                 'New Window': self.menu_new,
                 'Load Data': self.menu_load,
                 'Load Nexus': self.menu_nexus,
+                'Load Batch Data': self.menu_load_batch,
                 'Exit': self.f_exit,
             },
             'Fit': {
                 'Display Output': self.but_txt_results,
                 'Plot Fit': self.but_plot_results,
+                'Batch Fit': self.menu_batch,
             },
             'Script': {
                 'Create Script': self.menu_script,
@@ -209,13 +149,6 @@ class FittingGUI:
         self.txt_e.pack(side=tk.LEFT, fill=tk.X, expand=tk.YES, padx=0)
         scl.pack(side=tk.LEFT, fill=tk.Y)
 
-        # ---Left hand side Middle - Messagebox ---
-        mid = tk.Frame(left)
-        mid.pack(side=tk.TOP, fill=tk.X, expand=tk.YES, padx=2, pady=2)
-
-        var = tk.Label(mid, textvariable=self.message, font=SF)
-        var.pack(side=tk.LEFT, fill=tk.X, expand=tk.YES)
-
         # ---Left hand side Middle - Buttons ---
         mid = tk.Frame(left)
         mid.pack(side=tk.TOP, fill=tk.X, expand=tk.YES, padx=2, pady=2)
@@ -250,11 +183,11 @@ class FittingGUI:
         var = tk.Entry(fm2, textvariable=self.points_between_peaks, font=TF, width=10, bg=ety, fg=ety_txt)
         var.pack(side=tk.LEFT, padx=2)
 
-        var = tk.Button(mid, text='Select Peaks', font=BF, width=12, command=self.but_sel_peaks,
-                        bg=btn, activebackground=btn_active)
-        var.pack(side=tk.LEFT, fill=tk.Y, padx=2)
         frm = tk.Frame(mid)
         frm.pack(side=tk.LEFT)
+        var = tk.Button(frm, text='Click to add Peak', font=BF, command=self.but_sel_peaks,
+                        bg=btn, activebackground=btn_active)
+        var.pack(side=tk.TOP, fill=tk.X, expand=tk.YES, padx=2)
         var = tk.Button(frm, text='Click to Select', font=BF, command=self.but_click_select,
                         bg=btn, activebackground=btn_active)
         var.pack(side=tk.TOP, fill=tk.X, expand=tk.YES, padx=2)
@@ -262,63 +195,33 @@ class FittingGUI:
                         bg=btn, activebackground=btn_active)
         var.pack(side=tk.TOP, fill=tk.X, expand=tk.YES, padx=2)
 
-        # ---Left hand side Middle - Parameters ---
-        mid = tk.LabelFrame(left, text='Model', relief=tk.RIDGE)
-        mid.pack(side=tk.TOP, fill=tk.X, expand=tk.YES, padx=2, pady=2)
-
-        # Models
         frm = tk.Frame(mid)
-        frm.pack(side=tk.TOP, fill=tk.X, expand=tk.NO)
-        models = [mod.capitalize() for mod in fitting.PEAK_MODELS]
-        var = tk.OptionMenu(frm, self.peak_model, *models)
-        var.config(font=SF, width=12, bg=opt, activebackground=opt_active)
-        var["menu"].config(bg=opt, bd=0, activebackground=opt_active)
-        var.pack(side=tk.LEFT)
-        models = [mod.capitalize() for mod in fitting.BACKGROUND_MODELS]
-        var = tk.OptionMenu(frm, self.bkg_model, *models)
-        var.config(font=SF, width=12, bg=opt, activebackground=opt_active)
-        var["menu"].config(bg=opt, bd=0, activebackground=opt_active)
-        var.pack(side=tk.LEFT)
-        var = tk.Button(frm, text='Add Peak', font=BF, command=self.but_add_peak,
+        frm.pack(side=tk.LEFT, fill=tk.BOTH, expand=tk.YES)
+        var = tk.Button(frm, text='Models\n & \nParameters', font=BF, command=self.but_model_pars,
                         bg=btn, activebackground=btn_active)
-        var.pack(side=tk.LEFT, padx=2)
-        var = tk.Button(frm, text='Clear', font=BF, command=self.but_clear_peak,
-                        bg=btn, activebackground=btn_active)
-        var.pack(side=tk.LEFT, padx=2)
-        var = tk.Button(frm, text='Update', font=BF, command=self.but_update,
-                        bg=btn, activebackground=btn_active)
-        var.pack(side=tk.RIGHT, fill=tk.X, expand=tk.YES, padx=2)
+        var.pack(side=tk.TOP, fill=tk.BOTH, expand=tk.YES, padx=2)
 
-        # Parameters
-        sec = tk.LabelFrame(mid, text='Parameters', relief=tk.RIDGE)
-        sec.pack(side=tk.TOP, fill=tk.BOTH, padx=2, pady=2)
-        can = tk.Canvas(sec, height=200, width=900)
-        scl = tk.Scrollbar(sec, orient=tk.VERTICAL, command=can.yview)
-        self.peaksec = tk.Frame(can)
+        # ---Left hand side Middle - Batch ---
+        if batch_parent is not None:
+            mid = tk.Frame(left)
+            mid.pack(side=tk.TOP, fill=tk.X, expand=tk.YES, padx=2, pady=2)
 
-        self.peaksec.bind(
-            "<Configure>",
-            lambda e: can.configure(
-                scrollregion=can.bbox("all")
-            )
-        )
-        can.create_window((0, 0), window=self.peaksec, anchor="nw")
-        can.configure(yscrollcommand=scl.set)
-
-        def _on_mousewheel(event):
-            can.yview_scroll(int(-1 * (event.delta / 60)), "units")
-        can.bind("<MouseWheel>", _on_mousewheel)
-
-        can.pack(side="left", fill="both", expand=True)
-        scl.pack(side="right", fill="y")
-
-        # self.add_model('Linear')
+            var = tk.Button(frm, text='Update Batch', font=BF, command=self.but_batch_update,
+                            bg=btn, activebackground=btn_active)
+            var.pack(side=tk.TOP, fill=tk.BOTH, expand=tk.YES, padx=2)
 
         # ------------------------------
         #     ---Right hand side---
         # ------------------------------
         right = tk.Frame(frame)
         right.pack(side=tk.LEFT, fill=tk.Y, expand=tk.YES)
+
+        # ---Right hand side top - Messagebox ---
+        sec = tk.Frame(right)
+        sec.pack(side=tk.TOP, fill=tk.X, expand=tk.YES, padx=2, pady=2)
+
+        var = tk.Label(sec, textvariable=self.message, font=SF)
+        var.pack(side=tk.LEFT, fill=tk.X, expand=tk.YES)
 
         # ---Right hand side Top - Buttons ---
         sec = tk.Frame(right)
@@ -343,7 +246,7 @@ class FittingGUI:
         # ---Right hand Middle - figure---
         # Figure - Data and Fit
         frm = tk.Frame(right)
-        frm.pack(side=tk.TOP, fill=tk.BOTH, expand=tk.YES)
+        frm.pack(side=tk.TOP, fill=tk.BOTH, expand=tk.YES, padx=8)
 
         self.fig1 = Figure(figsize=[16, 8], dpi=_figure_dpi)
         self.fig1.patch.set_facecolor('w')
@@ -368,7 +271,7 @@ class FittingGUI:
         frm.pack(side=tk.TOP, fill=tk.X, expand=tk.YES)
         self.toolbar = NavigationToolbar2TkAgg(canvas, frm)
         self.toolbar.update()
-        self.toolbar.pack(fill=tk.X, expand=tk.YES)
+        self.toolbar.pack(fill=tk.X, expand=tk.YES, padx=10)
 
         # ---Right hand bottom - Results textbox---
         sec = tk.LabelFrame(right, text='Results', relief=tk.RIDGE)
@@ -388,55 +291,6 @@ class FittingGUI:
     "------------------------------------------------------------------------"
     "--------------------------General Functions-----------------------------"
     "------------------------------------------------------------------------"
-    def add_model(self, name):
-        """Add new model"""
-        # Genereate prefix
-        current_prefix = [mod[0] for mod in self.models]
-        if name.lower() in fitting.BACKGROUND_MODELS:
-            new_prefix = 'bkg_'
-            if 'bkg_' in current_prefix:
-                # remove old background + replace
-                self.remove_model('bkg_')
-        else:
-            n = 1
-            while 'p%d_' % n in current_prefix:
-                n += 1
-            new_prefix = 'p%d_' % n
-
-        mods, tkvars, secs = gen_param_from_name(self.peaksec, name, new_prefix)
-        self.models += mods
-        self.peakvars.update(tkvars)
-        self.par_sections += secs
-
-    def remove_model(self, prefix):
-        """Remove model by prefix"""
-        current_prefix = [mod[0] for mod in self.models]
-        if prefix not in current_prefix:
-            return
-        _ = self.peakvars.pop(prefix)
-        idx = current_prefix.index(prefix)
-        _ = self.models.pop(idx)
-        frm = self.par_sections.pop(idx)
-        frm.destroy()
-
-    def remove_models(self):
-        """Remove all models"""
-        current_prefix = [mod[0] for mod in self.models]
-        for prefx in current_prefix:
-            # print('Removing %s' % prefx)
-            self.remove_model(prefx)
-
-    def gen_model(self):
-        """Create model, pars from input boxes"""
-        return gen_model_from_boxes(self.models, self.peakvars)  # mod, pars
-
-    def gen_data(self):
-        """Generate xdata, ydata, yerror"""
-        xdata = np.array(eval(self.txt_x.get('1.0', tk.END)), dtype=float)
-        ydata = np.array(eval(self.txt_y.get('1.0', tk.END)), dtype=float)
-        yerror = np.array(eval(self.txt_e.get('1.0', tk.END)), dtype=float)
-        return xdata, ydata, yerror
-
     def update_plot(self):
         """Update plot"""
         self.ax1.relim()
@@ -444,6 +298,49 @@ class FittingGUI:
         self.ax1.autoscale_view()
         self.fig1.canvas.draw()
         self.toolbar.update()
+
+    def update(self):
+        xdata, ydata, yerror = self.gen_data()
+        if self.mask is not None and len(self.mask) == len(xdata):
+            xdata = xdata[~self.mask]
+            ydata = ydata[~self.mask]
+            yerror = yerror[~self.mask]
+
+        # Update plot
+        self.plot_data()
+        if self.model is None:
+            return
+        xinit = np.linspace(xdata.min(), xdata.max(), xdata.size * 10)
+        yinit = self.model.eval(params=self.pars, x=xinit)
+        self.pl_fit.set_xdata(xinit)
+        self.pl_fit.set_ydata(yinit)
+        self.update_plot()
+
+    def update_model(self, model, pars):
+        """Add new model"""
+        self.model = model
+        self.pars = pars
+        self.update()
+
+    def set_data(self, xdata, ydata, error=None):
+        """Replace txt boxes with new data"""
+        if error is None:
+            error = i16_peakfit.functions.error_func(ydata)
+
+        self.txt_x.delete('1.0', tk.END)
+        self.txt_x.insert('1.0', str(list(xdata)))
+        self.txt_y.delete('1.0', tk.END)
+        self.txt_y.insert('1.0', str(list(ydata)))
+        self.txt_e.delete('1.0', tk.END)
+        self.txt_e.insert('1.0', str(list(error)))
+        self.plot_data()
+
+    def gen_data(self):
+        """Generate xdata, ydata, yerror"""
+        xdata = np.array(eval(self.txt_x.get('1.0', tk.END)), dtype=float)
+        ydata = np.array(eval(self.txt_y.get('1.0', tk.END)), dtype=float)
+        yerror = np.array(eval(self.txt_e.get('1.0', tk.END)), dtype=float)
+        return xdata, ydata, yerror
 
     def plot_data(self):
         """Get data and add to plot"""
@@ -464,6 +361,31 @@ class FittingGUI:
         self.pl_span.set_xy(span)
         self.update_plot()
 
+    def add_peak(self, peak_type, xpos, ypos):
+        """Add new peak model"""
+        new_prefix = fitting.new_peak_prefix(self.model)
+        new_model = fitting.getmodel(peak_type)(prefix=new_prefix)
+        new_pars = new_model.make_params()
+
+        # Set model parameters
+        xdata, ydata, yerror = self.gen_data()
+        sigma = (np.max(xdata) - np.min(xdata)) / 5
+        amp = sigma * ypos / 0.3989423  # height = 0.3989423*amplitude/sigma
+        pkcen = '%scenter' % new_prefix
+        pkamp = '%samplitude' % new_prefix
+        pksig = '%ssigma' % new_prefix
+        new_pars[pkamp].set(value=amp, min=0, max=np.inf)
+        new_pars[pkcen].set(value=xpos, min=np.min(xdata), max=np.max(xdata))
+        new_pars[pksig].set(value=sigma, min=np.min(np.abs(np.diff(xdata))), max=3 * sigma)
+
+        if self.model is None:
+            self.model = new_model
+            self.pars = new_pars
+        else:
+            self.model += new_model
+            self.pars.update(new_pars)
+        self.update()
+
     def run_fit(self):
         # Get data
         xdata, ydata, yerror = self.gen_data()
@@ -472,18 +394,12 @@ class FittingGUI:
             ydata = ydata[~self.mask]
             yerror = yerror[~self.mask]
         # Get model
-        model, pars = self.gen_model()
         method = self.fit_method.get()
-        weights = fitting.gen_weights(yerror)
+        weights = i16_peakfit.functions.gen_weights(yerror)
         # Perform fit
-        res = model.fit(ydata, pars, x=xdata, weights=weights, method=method)
+        res = self.model.fit(ydata, self.pars, x=xdata, weights=weights, method=method)
         self.results = res
-
-        # update parameters
-        for prefix in self.peakvars:
-            for param in self.peakvars[prefix]:
-                par, pval, pmin, pmax, pref = param
-                pval.set(res.params[par].value)
+        self.update_model(res.model, res.params)
 
         # Update plot
         self.plot_data()
@@ -499,7 +415,7 @@ class FittingGUI:
         self.message.set('Fit completed.')
 
     "------------------------------------------------------------------------"
-    "---------------------------Button Functions-----------------------------"
+    "-----------------------------Menu Functions-----------------------------"
     "------------------------------------------------------------------------"
 
     def menu_new(self):
@@ -526,18 +442,37 @@ class FittingGUI:
         self.results = None
         self.mask = None
 
-        xdata, ydata, error = fitting.load_xye(filename)
-        self.txt_x.delete('1.0', tk.END)
-        self.txt_x.insert('1.0', str(list(xdata)))
-        self.txt_y.delete('1.0', tk.END)
-        self.txt_y.insert('1.0', str(list(ydata)))
-        self.txt_e.delete('1.0', tk.END)
-        self.txt_e.insert('1.0', str(list(error)))
-        self.plot_data()
+        xdata, ydata, error = i16_peakfit.functions.load_xye(filename)
+        self.set_data(xdata, ydata, error)
 
     def menu_nexus(self):
         """Menu button Load nexus"""
-        pass
+        from i16_peakfit.tknexus_selector import NexusSelectorGui, get_filenames
+
+        files = get_filenames()
+        if not files:
+            return
+        xdata, ydata, edata, values, batch_name = NexusSelectorGui(self, files[0]).show()
+
+        self.pl_fit.set_xdata([])
+        self.pl_fit.set_ydata([])
+        self.pl_mask.set_xdata([])
+        self.pl_mask.set_ydata([])
+        self.results = None
+        self.mask = None
+
+        self.set_data(list(xdata[0]), list(ydata[0]), list(edata[0]))
+
+    def menu_batch(self):
+        """Menu button Start batch processing"""
+        from i16_peakfit.tkbatch_gui import BatchGui
+        xdata, ydata, yerror = self.gen_data()
+        BatchGui([(xdata, ydata, yerror)])
+
+    def menu_load_batch(self):
+        """Menu button load files for batch processing"""
+        from i16_peakfit.tkbatch_gui import BatchGui
+        BatchGui()
 
     def menu_script(self):
         """Menu button Create Script"""
@@ -593,6 +528,10 @@ class FittingGUI:
     def menu_github(self):
         pass
 
+    "------------------------------------------------------------------------"
+    "---------------------------Button Functions-----------------------------"
+    "------------------------------------------------------------------------"
+
     def but_find_peaks(self):
         """Button Find Peaks"""
         xdata, ydata, yerror = self.gen_data()
@@ -607,7 +546,7 @@ class FittingGUI:
         bkg_name = self.bkg_model.get()
 
         # Run find peaks, create message
-        idx, pwr = fitting.find_peaks(ydata, yerror, min_peak_power=power, points_between_peaks=points)
+        idx, pwr = find_peaks(ydata, yerror, min_peak_power=power, points_between_peaks=points)
         s = "Found %d peaks\n" % len(idx)
         s += "  Index | Position | Power\n"
         for n in range(len(idx)):
@@ -628,19 +567,7 @@ class FittingGUI:
             points_between_peaks=points
         )
         # Replace models
-        self.remove_models()
-        mods, tkvars, secs = gen_param(self.peaksec, mod, pars)
-        self.models += mods
-        self.peakvars.update(tkvars)
-        self.par_sections += secs
-
-        # Update plot
-        self.plot_data()
-        xinit = np.linspace(xdata.min(), xdata.max(), xdata.size * 10)
-        yinit = mod.eval(params=pars, x=xinit)
-        self.pl_fit.set_xdata(xinit)
-        self.pl_fit.set_ydata(yinit)
-        self.update_plot()
+        self.update_model(mod, pars)
 
     def but_sel_peaks(self):
         """Button Select Peaks"""
@@ -653,38 +580,8 @@ class FittingGUI:
 
             if event.inaxes:
                 self.message.set('Position selected: (%.4g, %.4g)' % (event.xdata, event.ydata))
-
                 # Add peak
-                self.but_add_peak()
-                # Get last peak
-                current_prefix = [mod[0] for mod in self.models][-1]
-
-                # Set model parameters
-                xdata, ydata, yerror = self.gen_data()
-                sigma = (np.max(xdata) - np.min(xdata)) / 5
-                amp = event.ydata * sigma * 3
-                # Center
-                self.peakvars[current_prefix][1][1].set(event.xdata)  # [Centre][value]
-                self.peakvars[current_prefix][1][2].set(np.min(xdata))  # [Centre][min]
-                self.peakvars[current_prefix][1][3].set(np.max(xdata))  # [Centre][max]
-                # Sigma
-                self.peakvars[current_prefix][2][1].set(sigma)  # [Sigma][value]
-                self.peakvars[current_prefix][2][2].set(xdata[1]-xdata[0])  # [Sigma][min]
-                self.peakvars[current_prefix][2][3].set(3 * sigma)  # [Sigma][max]
-                # Amplitude
-                self.peakvars[current_prefix][0][1].set(amp)  # [Amplitude][value]
-                self.peakvars[current_prefix][0][2].set(0)  # [Amplitude][min]
-                self.peakvars[current_prefix][0][3].set(np.inf)  # [Amplitude][max]
-
-                # Update model
-                mod, pars = self.gen_model()
-
-                # Update plot
-                xinit = np.linspace(xdata.min(), xdata.max(), xdata.size * 10)
-                yinit = mod.eval(params=pars, x=xinit)
-                self.pl_fit.set_xdata(xinit)
-                self.pl_fit.set_ydata(yinit)
-                self.update_plot()
+                self.add_peak('Gaussian', event.xdata, event.ydata)
             else:
                 self.message.set('No position selected')
 
@@ -790,35 +687,13 @@ class FittingGUI:
         # self.root.bind("<Button-1>", get_mouseposition)
         self.root.config(cursor="crosshair")
 
-    def but_add_peak(self):
-        """Button add peak"""
-        current_prefix = [mod[0] for mod in self.models]
-        if 'bkg_' not in current_prefix:
-            bkg_name = self.bkg_model.get()
-            self.add_model(bkg_name)
-        model_name = self.peak_model.get()
-        self.add_model(model_name)
+    def but_model_pars(self):
+        """Button Models & Parameters"""
+        ModelParsGUI(self, self.model, self.pars)
 
     def but_update(self):
         """Button update plot"""
-        xdata, ydata, yerror = self.gen_data()
-        if self.mask is not None and len(self.mask) == len(xdata):
-            xdata = xdata[~self.mask]
-            ydata = ydata[~self.mask]
-            yerror = yerror[~self.mask]
-        # Get model
-        model, pars = self.gen_model()
-        # Update plot
-        self.plot_data()
-        xinit = np.linspace(xdata.min(), xdata.max(), xdata.size * 10)
-        yinit = model.eval(params=pars, x=xinit)
-        self.pl_fit.set_xdata(xinit)
-        self.pl_fit.set_ydata(yinit)
-        self.update_plot()
-
-    def but_clear_peak(self):
-        """Button clear"""
-        self.remove_models()
+        self.update()
 
     def but_fit(self):
         """Button fit"""
@@ -836,6 +711,15 @@ class FittingGUI:
         if self.results is None:
             return
         fitting.peak_results_plot(self.results)
+
+    def but_batch_update(self):
+        """Button update batch (when batch_parent active)"""
+        xdata, ydata, yerror = self.gen_data()
+        self.batch_parent.set_data(xdata, ydata, yerror)
+        self.batch_parent.mask = self.mask
+        self.batch_parent.results = self.results
+        self.batch_parent.update_model(self.model, self.pars)
+        self.batch_parent.update()
 
     def f_exit(self):
         self.root.destroy()

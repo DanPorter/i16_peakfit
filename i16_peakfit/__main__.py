@@ -13,6 +13,8 @@ By Dan Porter, PhD
 Diamond Light Source Ltd.
 2021
 """
+import i16_peakfit.functions
+
 if __name__ == '__main__':
 
     import sys
@@ -30,7 +32,7 @@ if __name__ == '__main__':
             continue
         try:
             print('Opening: %s' % arg)
-            xdata, ydata, yerror = i16_peakfit.load_xye(arg)
+            xdata, ydata, yerror = i16_peakfit.functions.load_xye(arg)
         except Exception:
             pass
 
