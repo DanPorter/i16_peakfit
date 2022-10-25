@@ -400,7 +400,12 @@ def peak_results_plot(res, axes=None, xlabel=None, ylabel=None, title=None):
             ax.legend()
         return ax
 
-    fig, grid = res.plot(xlabel=xlabel, ylabel=ylabel)
+    fig = res.plot(xlabel=xlabel, ylabel=ylabel)
+    try:
+        fig, grid = fig  # Old version of LMFit
+    except TypeError:
+        pass
+
     ax1, ax2 = fig.axes
     ax1.set_title(title, wrap=True)
     # Add peak components
@@ -408,6 +413,7 @@ def peak_results_plot(res, axes=None, xlabel=None, ylabel=None, title=None):
     for component in comps.keys():
         ax2.plot(xdata, comps[component], label=component)
         ax2.legend()
+    fig.set_figwidth(8)
     fig.show()
     return fig
 

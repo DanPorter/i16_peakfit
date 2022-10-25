@@ -70,6 +70,7 @@ def find_local_maxima(y, yerror=None):
     bkg = np.min(y)
     wi = 1 / yerror ** 2
 
+    # Find points of inflection
     index = local_maxima_1d(y)
     # average nearest 3 points to peak
     power = np.array([np.sum(wi[m - 1:m + 2] * (y[m - 1:m + 2] - bkg)) / np.sum(wi[m - 1:m + 2]) for m in index])
@@ -113,3 +114,36 @@ def find_peaks(y, yerror=None, min_peak_power=None, points_between_peaks=6):
     # sort peak order by strength
     power_sort = np.argsort(peak_power)
     return peaks_idx[power_sort], peak_power[power_sort]
+
+
+def pixel_peak_search(data, peak_percentile=99):
+    """
+    find average position of bright points in image
+    :param data: numpy array with ndims 1,2,3
+    :param peak_percentile: float from 0-100, percentile of image to use as peak area
+    :return: i, j, k index of image[i,j,k]
+    """
+    # bright = data > (peak_percentile/100.) * np.max(image)
+    bright = data > np.percentile(data, peak_percentile)
+    weights = data[bright]
+
+    if np.ndim(data) == 3:
+        shi, shj, shk = data.shape
+        j, i, k = np.meshgrid(range(shj), range(shi), range(shk))
+        avi = np.average(i[bright], weights=weights)
+        avj = np.average(j[bright], weights=weights)
+        avk = np.average(k[bright], weights=weights)
+        return int(avi), int(avj), int(avk)
+    elif np.ndim(data) == 2:
+        shi, shj = data.shape
+        j, i = np.meshgrid(range(shj), range(shi))
+        avi = np.average(i[bright], weights=weights)
+        avj = np.average(j[bright], weights=weights)
+        return int(avi), int(avj)
+    elif np.ndim(data) == 1:
+        i = np.arange(len(data))
+        avi = np.average(i[bright], weights=weights)
+        return int(avi)
+    else:
+        raise TypeError('wrong data type')
+

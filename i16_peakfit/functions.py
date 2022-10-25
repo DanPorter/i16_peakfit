@@ -232,3 +232,4 @@ def group_adjacent(values, close=10):
     dist_idx += [idx]
     # print('Last %2d %2d %2d %s' % (gx, indexes[gx], indexes[gx-1], dist_chk))
     return np.array(dist_chk), dist_idx
+

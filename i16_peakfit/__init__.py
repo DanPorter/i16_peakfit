@@ -9,16 +9,31 @@ Estimates are made as inital guesses based on additional peak finding algorithms
 Batch processing allows multiple datasets to be fitted at once and the resulting fit parameters plotted against
 an ancilliary dataset value.
 
+Usage:
+Start GUI session:
+  $ python -m i16_peakfit
+
+OR - Start GUI with data loaded
+  $ python -m i16_peakfit /some/xye/file.dat
+
+OR - Import functions into script
+    from i16_peakfit import multipeakfit, load_xye, peak_results_str
+
+    xdata, ydata, yerror = load_xye('/some/data/file.txt')
+    res = multipeakfit(xdata, ydata, yerror, npeaks=None, model='Gauss', plot_result=True)
+    print(peak_results_str(res))
+
 By Dan Porter, PhD
 Diamond Light Source Ltd.
 2021
 
-Version 0.2.0
-Last updated: 30/11/21
+Version 0.3.0
+Last updated: 25/10/22
 
 Version History:
 16/11/21 0.1.0  Version History started.
 30/11/21 0.2.0  Refactored tkinter_gui, functions.py, peak_finding.py, added tkmodelpars, tkbatch_gui, nexus_loader
+25/10/22 0.3.0  Small updates before testing on beamline
 
 -----------------------------------------------------------------------------
    Copyright 2021 Diamond Light Source Ltd.
@@ -41,20 +56,24 @@ Version History:
 """
 
 
-__version__ = "0.2.0"
-__date__ = "2021/11/30"
+__version__ = "0.3.0"
+__date__ = "2022/10/25"
 
 #import tkinter
 #import matplotlib
 #matplotlib.use("TkAgg")
 
-from i16_peakfit.fitting import multipeakfit, generate_model
+from i16_peakfit.fitting import multipeakfit, generate_model, peak_results, peak_results_str, peak_results_plot
 from i16_peakfit.peak_finding import find_peaks
 from i16_peakfit.functions import load_xye, peak_ratio
 
 
 def version_info():
     return 'i16_peakfit version %s (%s)' % (__version__, __date__)
+
+
+def doc_str():
+    return __doc__
 
 
 def module_info():

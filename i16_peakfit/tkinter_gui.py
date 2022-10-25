@@ -1,6 +1,7 @@
 """
 tkinter gui
 """
+import os
 
 import numpy as np
 from matplotlib.figure import Figure
@@ -86,6 +87,7 @@ class FittingGUI:
         menu = {
             'File': {
                 'New Window': self.menu_new,
+                'Example Data': self.menu_examples,
                 'Load Data': self.menu_load,
                 'Load Nexus': self.menu_nexus,
                 'Load Batch Data': self.menu_load_batch,
@@ -102,7 +104,8 @@ class FittingGUI:
                 'Open Script': self.menu_script_window,
             },
             'Help': {
-                'Help': self.menu_help,
+                'About': tk_widgets.popup_about,
+                'Help': tk_widgets.popup_help,
                 'Examples': self.menu_examples,
                 'Documentation': self.menu_docs,
                 'GitHub Page': self.menu_github,
@@ -516,11 +519,16 @@ class FittingGUI:
             disp_str = file.read()
         tk_widgets.PythonEditor(disp_str, newsavelocation)
 
-    def menu_help(self):
-        pass
-
     def menu_examples(self):
-        pass
+        """List example peaks"""
+        example_dir = os.path.join(os.path.split(__file__)[0], '../example_peaks')
+        example_peaks = os.listdir(example_dir)
+        names = [nm[:-4] for nm in example_peaks if nm.endswith('.csv')]
+        choose = tk_widgets.SelectionBox(self.root, names, multiselect=False, title='Select example peak').show()
+
+        filename = os.path.join(example_dir, choose[0] + '.csv')
+        xdata, ydata, error = i16_peakfit.functions.load_xye(filename)
+        self.set_data(xdata, ydata, error)
 
     def menu_docs(self):
         pass

@@ -673,7 +673,8 @@ class BatchGui:
                 'Open Script': self.menu_script_window,
             },
             'Help': {
-                'Help': self.menu_help,
+                'About': tk_widgets.popup_about,
+                'Help': tk_widgets.popup_help,
                 'Examples': self.menu_examples,
                 'Documentation': self.menu_docs,
                 'GitHub Page': self.menu_github,
@@ -974,9 +975,6 @@ class BatchGui:
         with open(newsavelocation) as file:
             disp_str = file.read()
         tk_widgets.PythonEditor(disp_str, newsavelocation)
-
-    def menu_help(self):
-        pass
 
     def menu_examples(self):
         pass

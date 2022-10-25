@@ -6,7 +6,7 @@ Usage:
   $ python -m i16_peakfit
   > start gui
 OR
-  $ python -m bablescan /some/xye/file.dat
+  $ python -m i16_peakfit /some/xye/file.dat
    - starts gui with data loaded
 
 By Dan Porter, PhD

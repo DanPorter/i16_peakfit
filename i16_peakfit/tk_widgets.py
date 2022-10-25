@@ -44,6 +44,23 @@ def popup_message(parent, title, message):
     return root
 
 
+def popup_about():
+    """Create about message"""
+    from i16_peakfit import version_info, module_info
+    msg = "%s\n\n" \
+          "A wrapper and graphical user interface of lmfit " \
+          "for scattering experiments such as those on Diamond-I16.\n\n" \
+          "Module Info:\n%s\n\n" \
+          "By Dan Porter, Diamond Light Source Ltd" % (version_info(), module_info())
+    messagebox.showinfo('About', msg)
+
+
+def popup_help():
+    """Create help message"""
+    from i16_peakfit import doc_str
+    return StringViewer(doc_str(), 'i16_peakfit Help', width=121)
+
+
 def topmenu(root, menu_dict):
     """
     Add a menu to root
@@ -65,9 +82,10 @@ def topmenu(root, menu_dict):
 class StringViewer:
     """
     Simple GUI that displays strings
+        StringViewer('output string', 'title', width, max_height)
     """
 
-    def __init__(self, string, title=''):
+    def __init__(self, string, title='', width=40, max_height=40):
         """Initialise"""
         # Create Tk inter instance
         self.root = tk.Tk()
@@ -82,7 +100,7 @@ class StringViewer:
 
         # Textbox height
         height = string.count('\n')
-        if height > 40: height = 40
+        if height > 40: height = max_height
 
         frame = tk.Frame(self.root)
         frame.pack(side=tk.TOP, fill=tk.BOTH, expand=tk.YES)
@@ -111,7 +129,7 @@ class StringViewer:
         scany.pack(side=tk.RIGHT, fill=tk.Y)
 
         # Editable string box
-        self.text = tk.Text(frame_box, width=40, height=height, font=HF, wrap=tk.NONE)
+        self.text = tk.Text(frame_box, width=width, height=height, font=HF, wrap=tk.NONE)
         self.text.pack(side=tk.TOP, fill=tk.BOTH, expand=tk.YES)
         self.text.insert(tk.END, string)
 
@@ -134,16 +152,15 @@ class SelectionBox:
     Displays all data fields and returns a selection
     Making a selection returns a list of field strings
 
-    out = SelectionBox(['field1','field2','field3'], current_selection=['field2'], title='', multiselect=False)
+    out = SelectionBox(['field1','field2','field3'], current_selection=['field2'], title='', multiselect=False).show()
     # Make selection and press "Select" > box disappears
-    out.output = ['list','of','strings']
-
+    out = ['list','of','strings']
     """
     "------------------------------------------------------------------------"
     "--------------------------GUI Initilisation-----------------------------"
     "------------------------------------------------------------------------"
 
-    def __init__(self, parent, data_fields, current_selection=[], title='Make a selection', multiselect=True):
+    def __init__(self, parent, data_fields, current_selection=(), title='Make a selection', multiselect=True):
         self.data_fields = data_fields
         self.initial_selection = current_selection
 
@@ -180,6 +197,7 @@ class SelectionBox:
         if multiselect:
             self.lst_data.configure(selectmode=tk.EXTENDED)
         self.lst_data.bind('<<ListboxSelect>>', self.fun_listboxselect)
+        self.lst_data.bind('<Double-Button-1>', self.fun_exitbutton)
 
         # Populate list box
         for k in self.data_fields:
@@ -262,13 +280,13 @@ class SelectionBox:
         """Update label on listbox selection"""
         self.numberoffields.set('%3d Selected Fields' % len(self.lst_data.curselection()))
 
-    def fun_exitbutton(self):
+    def fun_exitbutton(self, event=None):
         """Closes the current data window and generates output"""
         selection = self.lst_data.curselection()
         self.output = [self.data_fields[n] for n in selection]
         self.root.destroy()
 
-    def f_exit(self):
+    def f_exit(self, event=None):
         """Closes the current data window"""
         self.output = self.initial_selection
         self.root.destroy()
