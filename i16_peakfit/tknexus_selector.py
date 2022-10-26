@@ -4,6 +4,7 @@ i16_peakfit.tknexus_selector
 GUI to select x, y, error fields in nexus data
 """
 
+import os
 import numpy as np
 import tkinter as tk
 from i16_peakfit import tk_widgets
@@ -14,6 +15,7 @@ from i16_peakfit import nexus_loader
 
 
 def get_filenames():
+    """filedialog widget for Nexus Files"""
     filenames = tk_widgets.filedialog.askopenfilenames(
         title='Select Files for batch processing',
         initialdir='.',
@@ -21,7 +23,7 @@ def get_filenames():
         defaultextension='*.*',
         filetypes=(('Nexus files', "*.nxs"), ('HDF files', "*.hdf5"), ("all files", "*.*"))
     )
-    return filenames
+    return [f for f in filenames if os.path.isfile(f)]
 
 
 class NexusSelectorGui:
