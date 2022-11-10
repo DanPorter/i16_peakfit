@@ -233,3 +233,27 @@ def group_adjacent(values, close=10):
     # print('Last %2d %2d %2d %s' % (gx, indexes[gx], indexes[gx-1], dist_chk))
     return np.array(dist_chk), dist_idx
 
+
+def conv_gauss(y, window_size=31, widval=0.2):
+    """
+    smooth data using covolution with gaussian
+    :param y: array
+    :param window_size: size of gaussian window
+    :param widval: width of gaussian, where 1 is a sigma of the full window
+    :return:
+    """
+
+    half_window = (window_size - 1) // 2
+
+    x = np.arange(-half_window, half_window + 1)
+    sig = widval * window_size
+    amp = 1.0 / (sig * np.sqrt(2 * np.pi))  # normalised to area of 1
+    cen = 0
+    bkg = 0
+    gauss = amp * np.exp(-(x - cen) ** 2 / (2 * sig ** 2)) + bkg
+    firstvals = y[0] - np.abs(y[1:half_window + 1][::-1] - y[0])
+    lastvals = y[-1] + np.abs(y[-half_window - 1:-1][::-1] - y[-1])
+    y = np.concatenate((firstvals, y, lastvals))
+    # return convolve(G,y,mode= 'valid')
+    return np.convolve(y, gauss, mode='valid')
+

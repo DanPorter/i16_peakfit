@@ -70,10 +70,15 @@ class FittingGUI:
         self.fit_method = tk.StringVar(self.root, 'leastsqr')
         self.peak_model = tk.StringVar(self.root, 'Gaussian')
         self.bkg_model = tk.StringVar(self.root, 'Linear')
+        self.ylog = tk.BooleanVar(self.root, False)
+        self.ysmooth = tk.BooleanVar(self.root, False)
+        self.ydiff = tk.BooleanVar(self.root, False)
 
         # Plotting lines
         self.mask = None
         self.ax1_component_lines = []
+        self.ydata_original = ydata
+        self.ydata_checkboxes = [False, False, False]
         # Models
         if model is not None and parameters is None:
             parameters = model.make_params()
@@ -133,13 +138,24 @@ class FittingGUI:
         # Y
         sec = tk.LabelFrame(left, text='Y Data', relief=tk.RIDGE)
         sec.pack(side=tk.TOP, fill=tk.X, expand=tk.YES, padx=2, pady=2)
-        self.txt_y = tk.Text(sec, width=65, wrap=tk.WORD, height=5, bg=ety)
+        frm = tk.Frame(sec)
+        frm.pack(side=tk.LEFT)
+        self.txt_y = tk.Text(frm, width=65, wrap=tk.WORD, height=5, bg=ety)
         self.txt_y.insert(tk.INSERT, str(list(ydata)))
-        scl = tk.Scrollbar(sec)
+        scl = tk.Scrollbar(frm)
         scl.config(command=self.txt_y.yview)
         self.txt_y.config(yscrollcommand=scl.set)
         self.txt_y.pack(side=tk.LEFT, fill=tk.X, expand=tk.YES, padx=0)
         scl.pack(side=tk.LEFT, fill=tk.Y)
+        # Y Checkboxes
+        frm = tk.Frame(sec)
+        frm.pack(side=tk.LEFT, fill=tk.X, expand=tk.YES)
+        var = tk.Checkbutton(frm, text='Log', variable=self.ylog, font=TF, command=self.chk_y)
+        var.pack(side=tk.TOP, padx=2, anchor=tk.W)
+        var = tk.Checkbutton(frm, text='Smooth', variable=self.ysmooth, font=TF, command=self.chk_y)
+        var.pack(side=tk.TOP, padx=2, anchor=tk.W)
+        var = tk.Checkbutton(frm, text='Diff', variable=self.ydiff, font=TF, command=self.chk_y)
+        var.pack(side=tk.TOP, padx=2, anchor=tk.W)
 
         # Error
         sec = tk.LabelFrame(left, text='Y Error', relief=tk.RIDGE)
@@ -539,6 +555,28 @@ class FittingGUI:
     "------------------------------------------------------------------------"
     "---------------------------Button Functions-----------------------------"
     "------------------------------------------------------------------------"
+
+    def chk_y(self):
+        """Apply functions to y-axis"""
+        old_log, old_smooth, old_diff = self.ydata_checkboxes
+        log = self.ylog.get()
+        smooth = self.ysmooth.get()
+        diff = self.ydiff.get()
+        # update original data
+        if sum(self.ydata_checkboxes) == 0:
+            xdata, ydata, yerror = self.gen_data()
+            self.ydata_original = ydata
+        data = 1.0 * self.ydata_original
+        if log:
+            data = np.log10(data)
+        if diff:
+            data = np.gradient(data)
+        if smooth:
+            data = i16_peakfit.functions.conv_gauss(data, len(data)//4, 0.1)
+        self.ydata_checkboxes = [log, smooth, diff]
+        self.txt_y.delete("1.0", tk.END)
+        self.txt_y.insert("1.0", str(list(data)))
+        self.plot_data()
 
     def but_find_peaks(self):
         """Button Find Peaks"""

@@ -27,13 +27,14 @@ By Dan Porter, PhD
 Diamond Light Source Ltd.
 2021
 
-Version 0.3.0
-Last updated: 25/10/22
+Version 0.4.0
+Last updated: 10/11/22
 
 Version History:
 16/11/21 0.1.0  Version History started.
 30/11/21 0.2.0  Refactored tkinter_gui, functions.py, peak_finding.py, added tkmodelpars, tkbatch_gui, nexus_loader
 25/10/22 0.3.0  Small updates before testing on beamline
+10/11/22 0.4.0  Improved nexus address selection in GUI. Added ydata function checkboxes
 
 -----------------------------------------------------------------------------
    Copyright 2021 Diamond Light Source Ltd.
@@ -56,8 +57,8 @@ Version History:
 """
 
 
-__version__ = "0.3.0"
-__date__ = "2022/10/25"
+__version__ = "0.4.0"
+__date__ = "2022/11/10"
 
 #import tkinter
 #import matplotlib

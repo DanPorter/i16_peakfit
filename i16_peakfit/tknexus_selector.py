@@ -40,8 +40,8 @@ class NexusSelectorGui:
         else:
             self.nexus_files = np.asarray(nexus_files, dtype=str).reshape(-1)
 
-        array_addresses = nexus_loader.array_addresses(self.nexus_files[0])
-        all_addresses = nexus_loader.hdf_addresses(self.nexus_files[0])
+        self.array_addresses = nexus_loader.array_addresses(self.nexus_files[0])
+        self.all_addresses = nexus_loader.hdf_addresses(self.nexus_files[0])
 
         # Create Tk inter instance
         self.parent = parent  # i16_peakfit.tkinter_gui.BatchGui()
@@ -55,8 +55,8 @@ class NexusSelectorGui:
             activeBackground=opt_active,
             activeForeground=txtcol)
 
-        self.xaddress = tk.StringVar(self.root, array_addresses[0])
-        self.yaddress = tk.StringVar(self.root, array_addresses[-1])
+        self.xaddress = tk.StringVar(self.root, self.array_addresses[0])
+        self.yaddress = tk.StringVar(self.root, self.array_addresses[-1])
         self.errorfun = tk.StringVar(self.root, 'np.sqrt(np.abs(y)+1)')
         self.batchaddress = tk.StringVar(self.root, 'entry1/scan_command')
         self.batchvalue = tk.StringVar(self.root, '')
@@ -75,31 +75,48 @@ class NexusSelectorGui:
         frame.pack(side=tk.TOP, fill=tk.X, expand=tk.YES)
         var = tk.Label(frame, text='Nexus Value: ', font=TF)
         var.pack(side=tk.LEFT, padx=2)
-        var = tk.OptionMenu(frame, self.batchaddress, *all_addresses, command=self.opt_batchvalue)
-        var.config(font=SF, width=24, bg=opt, activebackground=opt_active)
-        var["menu"].config(bg=opt, bd=0, activebackground=opt_active)
-        var.pack(side=tk.LEFT)
-        var = tk.Label(frame, textvariable=self.batchvalue, font=TF)
+        var = tk.Entry(frame, textvariable=self.batchaddress, font=TF, width=32, bg=ety, fg=ety_txt)
+        var.pack(side=tk.LEFT, padx=2)
+        var.bind('<Return>', self.get_batchaddress)
+        var.bind('<KP_Enter>', self.get_batchaddress)
+        var = tk.Button(frame, text='Select', font=BF, command=self.but_batchaddress,
+                        bg=btn, activebackground=btn_active)
+        var.pack(side=tk.LEFT, padx=2)
+        # var = tk.OptionMenu(frame, self.batchaddress, *all_addresses, command=self.get_batchaddress)
+        # var.config(font=SF, width=24, bg=opt, activebackground=opt_active)
+        # var["menu"].config(bg=opt, bd=0, activebackground=opt_active)
+        # var.pack(side=tk.LEFT)
+        var = tk.Label(frame, textvariable=self.batchvalue, width=40, font=TF)
         var.pack(side=tk.LEFT, padx=4)
-        self.opt_batchvalue()
+        self.get_batchaddress()
 
         frame = tk.Frame(self.root)
         frame.pack(side=tk.TOP, fill=tk.X, expand=tk.YES)
         var = tk.Label(frame, text='X: ', font=TF)
         var.pack(side=tk.LEFT, padx=2)
-        var = tk.OptionMenu(frame, self.xaddress, *array_addresses)
-        var.config(font=SF, width=48, bg=opt, activebackground=opt_active)
-        var["menu"].config(bg=opt, bd=0, activebackground=opt_active)
-        var.pack(side=tk.LEFT)
+        var = tk.Entry(frame, textvariable=self.xaddress, font=TF, width=32, bg=ety, fg=ety_txt)
+        var.pack(side=tk.LEFT, padx=2)
+        var = tk.Button(frame, text='Select', font=BF, command=self.but_xaddress,
+                        bg=btn, activebackground=btn_active)
+        var.pack(side=tk.LEFT, padx=2)
+        # var = tk.OptionMenu(frame, self.xaddress, *array_addresses)
+        # var.config(font=SF, width=48, bg=opt, activebackground=opt_active)
+        # var["menu"].config(bg=opt, bd=0, activebackground=opt_active)
+        # var.pack(side=tk.LEFT)
 
         frame = tk.Frame(self.root)
         frame.pack(side=tk.TOP, fill=tk.X, expand=tk.YES)
         var = tk.Label(frame, text='Y: ', font=TF)
         var.pack(side=tk.LEFT, padx=2)
-        var = tk.OptionMenu(frame, self.yaddress, *array_addresses)
-        var.config(font=SF, width=48, bg=opt, activebackground=opt_active)
-        var["menu"].config(bg=opt, bd=0, activebackground=opt_active)
-        var.pack(side=tk.LEFT)
+        var = tk.Entry(frame, textvariable=self.yaddress, font=TF, width=32, bg=ety, fg=ety_txt)
+        var.pack(side=tk.LEFT, padx=2)
+        var = tk.Button(frame, text='Select', font=BF, command=self.but_yaddress,
+                        bg=btn, activebackground=btn_active)
+        var.pack(side=tk.LEFT, padx=2)
+        # var = tk.OptionMenu(frame, self.yaddress, *array_addresses)
+        # var.config(font=SF, width=48, bg=opt, activebackground=opt_active)
+        # var["menu"].config(bg=opt, bd=0, activebackground=opt_active)
+        # var.pack(side=tk.LEFT)
 
         frame = tk.Frame(self.root)
         frame.pack(side=tk.TOP, fill=tk.X, expand=tk.YES)
@@ -122,10 +139,30 @@ class NexusSelectorGui:
     "--------------------------General Functions-----------------------------"
     "------------------------------------------------------------------------"
 
-    def opt_batchvalue(self, event=None):
+    def get_batchaddress(self, event=None):
+        """Get dataset value of hdf address"""
         batchaddress = self.batchaddress.get()
         values = nexus_loader.load_hdf_values(self.nexus_files[0], batchaddress, 'None')
         self.batchvalue.set(str(values[0]))
+
+    def but_batchaddress(self):
+        """Select address"""
+        out = tk_widgets.SelectionBox(self.root, self.all_addresses, title='Nexus Value', multiselect=False).show()
+        if out:
+            self.batchaddress.set(out[0])
+            self.get_batchaddress()
+
+    def but_xaddress(self):
+        """Select address"""
+        out = tk_widgets.SelectionBox(self.root, self.array_addresses, title='X dataset', multiselect=False).show()
+        if out:
+            self.xaddress.set(out[0])
+
+    def but_yaddress(self):
+        """Select address"""
+        out = tk_widgets.SelectionBox(self.root, self.array_addresses, title='Y dataset', multiselect=False).show()
+        if out:
+            self.yaddress.set(out[0])
 
     def get_addresses(self):
         xaddress = self.xaddress.get()
