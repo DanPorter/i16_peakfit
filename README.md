@@ -1,5 +1,5 @@
 # i16_peakfit
-Wrapper and graphical user inteface of lmfit for scattering experiments such as those on Diamond-I16
+Wrapper and graphical user interface of lmfit for scattering experiments such as those on Diamond-I16
 
 ### Usage
 Start GUI session:

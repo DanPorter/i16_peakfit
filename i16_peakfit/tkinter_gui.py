@@ -377,7 +377,9 @@ class FittingGUI:
         self.pl_mask.set_ydata(ymask)
         ax_ymin, ax_ymax = self.ax1.get_ylim()
         span = [[xmin, ax_ymin], [xmin, ax_ymax], [xmin, ax_ymax], [xmin, ax_ymin], [xmin, ax_ymin]]
-        self.pl_span.set_xy(span)
+        # bounds = [xmin, ax_ymin, ]
+        # self.pl_span.set_xy(span)
+        self.pl_span.set_bounds(xmin, ax_ymin, 0, 0)
         self.update_plot()
 
     def add_peak(self, peak_type, xpos, ypos):
@@ -664,8 +666,9 @@ class FittingGUI:
             if event.inaxes and ipress[0]:
                 x_max = event.xdata
                 ax_ymin, ax_ymax = self.ax1.get_ylim()
-                span = [[xval[0], ax_ymin], [xval[0], ax_ymax], [x_max, ax_ymax], [x_max, ax_ymin], [xval[0], ax_ymin]]
-                self.pl_span.set_xy(span)
+                # span = [[xval[0], ax_ymin], [xval[0], ax_ymax], [x_max, ax_ymax], [x_max, ax_ymin], [xval[0], ax_ymin]]
+                # self.pl_span.set_xy(span)
+                self.pl_span.set_bounds(xval[0], ax_ymin, x_max - xval[0], ax_ymax - ax_ymin)
                 self.update_plot()
 
         def mouse_release(event):
@@ -714,8 +717,9 @@ class FittingGUI:
             if event.inaxes and ipress[0]:
                 x_max = event.xdata
                 ax_ymin, ax_ymax = self.ax1.get_ylim()
-                span = [[xval[0], ax_ymin], [xval[0], ax_ymax], [x_max, ax_ymax], [x_max, ax_ymin], [xval[0], ax_ymin]]
-                self.pl_span.set_xy(span)
+                # span = [[xval[0], ax_ymin], [xval[0], ax_ymax], [x_max, ax_ymax], [x_max, ax_ymin], [xval[0], ax_ymin]]
+                # self.pl_span.set_xy(span)
+                self.pl_span.set_bounds(xval[0], ax_ymin, x_max - xval[0], ax_ymax - ax_ymin)
                 self.update_plot()
 
         def mouse_release(event):

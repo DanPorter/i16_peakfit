@@ -187,8 +187,8 @@ def gauss(x, y=None, height=1, cen=0, fwhm=0.5, bkg=0):
     if y is None:
         y = cen
 
-    x = np.asarray(x, dtype=np.float).reshape([-1])
-    y = np.asarray(y, dtype=np.float).reshape([-1])
+    x = np.asarray(x, dtype=float).reshape([-1])
+    y = np.asarray(y, dtype=float).reshape([-1])
     xx, yy = np.meshgrid(x, y)
     g = height * np.exp(-np.log(2) * (((xx - cen) ** 2 + (yy - cen) ** 2) / (fwhm / 2) ** 2)) + bkg
 

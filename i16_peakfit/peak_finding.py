@@ -19,7 +19,7 @@ def local_maxima_1d(y):
     y = np.asarray(y, dtype=float).reshape(-1)
 
     # Preallocate, there can't be more maxima than half the size of `y`
-    midpoints = np.empty(y.shape[0] // 2, dtype=np.intp)
+    midpoints = np.empty(y.shape[0] // 2, dtype=int)
     m = 0  # Pointer to the end of valid area in allocated arrays
     i = 1  # Pointer to current sample, first one can't be maxima
     i_max = y.shape[0] - 1  # Last sample can't be maxima

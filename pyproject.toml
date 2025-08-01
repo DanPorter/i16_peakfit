@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools >= 61.0", "wheel", "pytest", "numpy"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "i16_peakfit"
+dynamic = ['version']
+dependencies = [
+  "numpy",
+  "h5py",
+  "hdf5plugin",
+  "matplotlib",
+  "lmfit",
+  "imageio",
+  "tkinter"
+]
+requires-python = ">=3.11"
+authors = [
+  {name = "Dan Porter", email = "dan.porter@diamond.ac.uk"},
+]
+maintainers = [
+  {name = "Dan Porter", email = "dan.porter@diamond.ac.uk"},
+]
+description = "Wrapper and graphical user interface of lmfit for scattering experiments such as those on Diamond-I16"
+readme = "README.md"
+license = {file = "LICENSE"}
+keywords = [
+  'fitting',
+]
+classifiers = [
+  'Programming Language :: Python :: 3.11',
+  'Intended Audience :: Science/Research',
+  'Topic :: Scientific/Engineering :: Physics',
+  'License :: OSI Approved :: Apache Software License',
+  'Development Status :: 3 - Alpha',
+]
+
+[project.urls]
+Homepage = "https://github.com/DanPorter/i16_peakfit"
+
+[tool.setuptools.dynamic]
+version = {attr = "i16_peakfit.__version__"}

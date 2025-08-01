@@ -25,16 +25,17 @@ OR - Import functions into script
 
 By Dan Porter, PhD
 Diamond Light Source Ltd.
-2021
+2021-2025
 
-Version 0.4.0
-Last updated: 10/11/22
+Version 0.5.0
+Last updated: 01/08/25
 
 Version History:
 16/11/21 0.1.0  Version History started.
 30/11/21 0.2.0  Refactored tkinter_gui, functions.py, peak_finding.py, added tkmodelpars, tkbatch_gui, nexus_loader
 25/10/22 0.3.0  Small updates before testing on beamline
 10/11/22 0.4.0  Improved nexus address selection in GUI. Added ydata function checkboxes
+01/08/25 0.5.0  Updated package for more recent versions of matplotlib an numpy
 
 -----------------------------------------------------------------------------
    Copyright 2021 Diamond Light Source Ltd.
@@ -57,8 +58,8 @@ Version History:
 """
 
 
-__version__ = "0.4.0"
-__date__ = "2022/11/10"
+__version__ = "0.5.0"
+__date__ = "2025/08/01"
 
 #import tkinter
 #import matplotlib
@@ -67,6 +68,10 @@ __date__ = "2022/11/10"
 from i16_peakfit.fitting import multipeakfit, generate_model, peak_results, peak_results_str, peak_results_plot
 from i16_peakfit.peak_finding import find_peaks
 from i16_peakfit.functions import load_xye, peak_ratio
+
+__all__ = ['multipeakfit', 'generate_model', 'peak_results', 'peak_results_str', 'peak_results_plot',
+           'find_peaks', 'load_xye', 'peak_ratio',
+           'version_info', 'doc_str', 'module_info']
 
 
 def version_info():
